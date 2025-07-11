@@ -16,7 +16,7 @@ function StreamlitVisGraph() {
 
   const events: GraphEvents = {
     selectNode: (event) => {
-      Streamlit.setComponentValue(event.nodes[0]);
+      Streamlit.setComponentValue(event.nodes);
     }
     ,
     doubleClick: (event) => {
