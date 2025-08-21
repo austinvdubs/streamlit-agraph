@@ -4,7 +4,7 @@ import streamlit as st
 
 
 class Config:
-  def __init__(self, height=750, width=750, directed=True, physics=True, hierarchical=False, from_json=None, **kwargs):
+  def __init__(self, height=750, width=750, directed=True, physics=True, hierarchical=False, center_node=None, from_json=None, **kwargs):
     self.height = f"{height}px"
     self.width = f"{width}px"
     if not directed:
@@ -37,6 +37,9 @@ class Config:
       }
     }
     self.groups = kwargs.get("groups", None)
+    
+    # Center node configuration - ID of the node to center the graph on
+    self.center_node = center_node
 
     self.__dict__.update(**kwargs)
 
@@ -70,6 +73,7 @@ class ConfigBuilder(object):
         self.basic_widget = self.basic_widget()
         self.physics_widget = self.physics_widget()
         self.hierarchical_widget = self.hierarchical_widget()
+        self.center_widget = self.center_widget()
         self.groups = self.group_widget()
 
     def basic_widget(self):
@@ -184,6 +188,38 @@ class ConfigBuilder(object):
                            "shakeTowards": st.session_state.shakeTowards
                            }
                           )
+
+    def center_widget(self):
+        center_expander = st.sidebar.expander("Center Node Config", expanded=False)
+        with center_expander:
+            center_expander.checkbox("enable_center",
+                                    value=self.kwargs.get("enable_center", False),
+                                    key="enable_center",
+                                    help="Enable centering the graph on a specific node")
+            
+            if st.session_state.get("enable_center", False):
+                if self.nodes:
+                    node_ids = [node.id for node in self.nodes]
+                    center_expander.selectbox("center_node",
+                                            options=["None"] + node_ids,
+                                            index=self._get_index(["None"] + node_ids, "center_node"),
+                                            key="center_node",
+                                            help="Select the node to center the graph on")
+                    
+                    # Set center_node to None if "None" is selected, otherwise use the selected node ID
+                    selected_center = st.session_state.get("center_node", "None")
+                    if selected_center == "None":
+                        self.kwargs["center_node"] = None
+                    else:
+                        self.kwargs["center_node"] = selected_center
+                else:
+                    center_expander.text_input("center_node",
+                                             value=self.kwargs.get("center_node", ""),
+                                             key="center_node_text",
+                                             help="Enter the ID of the node to center on")
+                    self.kwargs["center_node"] = st.session_state.get("center_node_text", None)
+            else:
+                self.kwargs["center_node"] = None
 
     def group_widget(self):
         group_expander = st.sidebar.expander("Group Config", expanded=False)
