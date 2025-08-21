@@ -6,10 +6,25 @@ import { useRenderData } from "streamlit-component-lib-react-hooks";
 function StreamlitVisGraph() {
   const renderData = useRenderData();
   const networkRef = useRef<any>(null);
+  const hasCenteredRef = useRef<boolean>(false);
 
   const graphIn = JSON.parse(renderData.args["data"])
 
-  const options: Options = JSON.parse(renderData.args["config"])
+  const baseOptions: Options = JSON.parse(renderData.args["config"])
+  
+  // Ensure interaction is enabled to allow panning after focus
+  const options: Options = {
+    ...baseOptions,
+    interaction: {
+      dragView: true,
+      zoomView: true,
+      dragNodes: true,
+      hover: true,
+      navigationButtons: true,
+      keyboard: true,
+      ...((baseOptions as any).interaction || {})
+    }
+  }
 
   const lookupNodeId = (lookupNode, myNodes) => myNodes.find(node => node.id === lookupNode);
 
@@ -34,60 +49,71 @@ function StreamlitVisGraph() {
     }
   };
 
+  // Reset the centered flag when centerNode changes
+  useEffect(() => {
+    hasCenteredRef.current = false;
+  }, [centerNode]);
+
   // Effect to center on node when the network is ready
   useEffect(() => {
-    if (networkRef.current && centerNode) {
+    if (networkRef.current && centerNode && !hasCenteredRef.current) {
       const network = networkRef.current;
       
       console.log(`Attempting to center on node: ${centerNode}`);
       
-      // Wait for stabilization to complete before centering
-      const handleStabilized = () => {
-        console.log('Network stabilized, focusing on node:', centerNode);
+      // Single function to focus on the node
+      const focusOnNode = () => {
+        if (hasCenteredRef.current) return; // Prevent multiple focus calls
+        
+        console.log('Focusing on node:', centerNode);
         try {
-          // Focus on the specified node with animation and zoom
-          network.focus(centerNode, {
-            scale: 2.0, // Zoom in more to see the centered node clearly
-            animation: {
-              duration: 1500,
-              easingFunction: 'easeInOutQuad',
-            },
-          });
+          // Get the position of the node we want to center on
+          const nodePositions = network.getPositions([centerNode]);
+          const nodePosition = nodePositions[centerNode];
+          
+          if (nodePosition) {
+
+            network.focus(centerNode, {
+              scale: 2.0,
+              animation: {
+                duration: 1500,
+                easingFunction: 'easeInOutQuad',
+              },
+              locked: false,
+            });
+            
+            // Release the node after animation to ensure camera isn't locked
+            setTimeout(() => {
+              network.releaseNode();
+            }, 1600);
+          } else {
+            console.warn(`Node position not found for: ${centerNode}`);
+          }
+          
+          // Mark as centered to prevent further focus calls
+          hasCenteredRef.current = true;
         } catch (error) {
           console.warn(`Could not center on node ${centerNode}:`, error);
         }
       };
 
-      // Multiple strategies to ensure centering works
-      const attemptFocus = () => {
-        if (network) {
-          handleStabilized();
-        }
+      // Wait for stabilization before centering
+      const handleStabilized = () => {
+        focusOnNode();
       };
 
-      // Listen for stabilization completion
-      network.on('stabilizationIterationsDone', handleStabilized);
-      
-      // Also listen for when physics is disabled (for hierarchical layouts)
-      network.on('afterDrawing', () => {
-        if (!network.physics.enabled) {
-          attemptFocus();
-        }
-      });
-      
-      // Try to center after a short delay to ensure network is ready
-      const timeoutId = setTimeout(attemptFocus, 500);
-      
-      // Also try to center immediately if already stabilized
-      if (network.physics.stabilized || !network.physics.enabled) {
-        attemptFocus();
+      // If physics is disabled or already stabilized, focus immediately
+      if (!network.physics.enabled || network.physics.stabilized) {
+        // Small delay to ensure network is fully ready
+        setTimeout(focusOnNode, 100);
+      } else {
+        // Otherwise wait for stabilization
+        network.once('stabilizationIterationsDone', handleStabilized);
       }
 
-      // Cleanup listeners and timeout
+      // Cleanup listener
       return () => {
         network.off('stabilizationIterationsDone', handleStabilized);
-        network.off('afterDrawing');
-        clearTimeout(timeoutId);
       };
     }
   }, [centerNode]);
@@ -101,25 +127,7 @@ function StreamlitVisGraph() {
         getNetwork={(network: any) => {
           console.log('Network instance received:', network);
           networkRef.current = network;
-          
-          // If we have a center node and the network just loaded, attempt to focus
-          if (centerNode && network) {
-            console.log('Network loaded with center node:', centerNode);
-            // Small delay to ensure network is fully initialized
-            setTimeout(() => {
-              try {
-                network.focus(centerNode, {
-                  scale: 2.0,
-                  animation: {
-                    duration: 1500,
-                    easingFunction: 'easeInOutQuad',
-                  },
-                });
-              } catch (error) {
-                console.warn('Failed to focus on initial load:', error);
-              }
-            }, 1000);
-          }
+          // Focus will be handled in the useEffect hook, not here
         }}
       />
     </span>
