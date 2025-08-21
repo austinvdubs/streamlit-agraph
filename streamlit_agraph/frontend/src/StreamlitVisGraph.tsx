@@ -20,7 +20,7 @@ function StreamlitVisGraph() {
       zoomView: true,
       dragNodes: true,
       hover: true,
-      navigationButtons: true,
+      navigationButtons: false,
       keyboard: true,
       ...((baseOptions as any).interaction || {})
     }
