@@ -30,8 +30,23 @@ function StreamlitVisGraph() {
 
   const graph: GraphData = {nodes: graphIn.nodes.slice(), edges: graphIn.edges.slice()}
 
-  // Center node functionality
-  const centerNode = (options as any).center_node;
+  // Center node functionality - support both single node ID and {center_node, zoom} format
+  const centerNodeConfig = (options as any).center_node;
+  
+  // Parse center node configuration
+  let centerNode: string | null = null;
+  let zoomScale: number = 2.0; // default zoom scale
+  
+  if (centerNodeConfig) {
+    if (typeof centerNodeConfig === 'string' || typeof centerNodeConfig === 'number') {
+      // Backward compatibility: single node ID
+      centerNode = String(centerNodeConfig);
+    } else if (typeof centerNodeConfig === 'object' && centerNodeConfig.center_node) {
+      // New format: {center_node: id, zoom: scale}
+      centerNode = String(centerNodeConfig.center_node);
+      zoomScale = centerNodeConfig.zoom || 2.0;
+    }
+  }
 
   const events: GraphEvents = {
     selectNode: (event) => {
@@ -49,23 +64,23 @@ function StreamlitVisGraph() {
     }
   };
 
-  // Reset the centered flag when centerNode changes
+  // Reset the centered flag when centerNode config changes
   useEffect(() => {
     hasCenteredRef.current = false;
-  }, [centerNode]);
+  }, [centerNodeConfig]);
 
   // Effect to center on node when the network is ready
   useEffect(() => {
     if (networkRef.current && centerNode && !hasCenteredRef.current) {
       const network = networkRef.current;
       
-      console.log(`Attempting to center on node: ${centerNode}`);
+      console.log(`Attempting to center on node: ${centerNode} with zoom scale: ${zoomScale}`);
       
       // Single function to focus on the node
       const focusOnNode = () => {
         if (hasCenteredRef.current) return; // Prevent multiple focus calls
         
-        console.log('Focusing on node:', centerNode);
+        console.log('Focusing on node:', centerNode, 'with zoom:', zoomScale);
         try {
           // Get the position of the node we want to center on
           const nodePositions = network.getPositions([centerNode]);
@@ -74,7 +89,7 @@ function StreamlitVisGraph() {
           if (nodePosition) {
 
             network.focus(centerNode, {
-              scale: 2.0,
+              scale: zoomScale,
               animation: {
                 duration: 1500,
                 easingFunction: 'easeInOutQuad',

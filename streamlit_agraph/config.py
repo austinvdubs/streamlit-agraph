@@ -38,7 +38,9 @@ class Config:
     }
     self.groups = kwargs.get("groups", None)
     
-    # Center node configuration - ID of the node to center the graph on
+    # Center node configuration - can be:
+    # - String/int: ID of the node to center the graph on (backward compatibility)
+    # - Dict: {'center_node': node_id, 'zoom': zoom_scale} for custom zoom level
     self.center_node = center_node
 
     self.__dict__.update(**kwargs)
@@ -198,6 +200,15 @@ class ConfigBuilder(object):
                                     help="Enable centering the graph on a specific node")
             
             if st.session_state.get("enable_center", False):
+                # Zoom scale configuration
+                zoom_scale = center_expander.slider("zoom_scale",
+                                                   min_value=0.1,
+                                                   max_value=5.0,
+                                                   value=2.0,
+                                                   step=0.1,
+                                                   key="center_zoom_scale",
+                                                   help="Zoom scale when centering on the node (default: 2.0)")
+                
                 if self.nodes:
                     node_ids = [node.id for node in self.nodes]
                     center_expander.selectbox("center_node",
@@ -206,18 +217,29 @@ class ConfigBuilder(object):
                                             key="center_node",
                                             help="Select the node to center the graph on")
                     
-                    # Set center_node to None if "None" is selected, otherwise use the selected node ID
+                    # Set center_node configuration
                     selected_center = st.session_state.get("center_node", "None")
                     if selected_center == "None":
                         self.kwargs["center_node"] = None
                     else:
-                        self.kwargs["center_node"] = selected_center
+                        # Create dictionary format with node and zoom
+                        self.kwargs["center_node"] = {
+                            "center_node": selected_center,
+                            "zoom": zoom_scale
+                        }
                 else:
-                    center_expander.text_input("center_node",
-                                             value=self.kwargs.get("center_node", ""),
-                                             key="center_node_text",
-                                             help="Enter the ID of the node to center on")
-                    self.kwargs["center_node"] = st.session_state.get("center_node_text", None)
+                    center_node_text = center_expander.text_input("center_node",
+                                                                 value="",
+                                                                 key="center_node_text",
+                                                                 help="Enter the ID of the node to center on")
+                    if center_node_text:
+                        # Create dictionary format with node and zoom
+                        self.kwargs["center_node"] = {
+                            "center_node": center_node_text,
+                            "zoom": zoom_scale
+                        }
+                    else:
+                        self.kwargs["center_node"] = None
             else:
                 self.kwargs["center_node"] = None
 

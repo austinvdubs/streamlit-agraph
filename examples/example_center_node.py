@@ -85,15 +85,18 @@ if result:
 # Show example code
 with st.expander("💻 Example Code"):
     st.code("""
-# Basic usage with center node
+# Basic usage with center node (backward compatible)
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # Create nodes and edges
 nodes = [Node(id="center", label="Center"), Node(id="other", label="Other")]
 edges = [Edge(source="center", target="other")]
 
-# Create config with center node
+# Create config with center node (uses default zoom of 2.0)
 config = Config(center_node="center")
+
+# Or with custom zoom level (new format)
+config = Config(center_node={"center_node": "center", "zoom": 1.5})
 
 # Render the graph
 agraph(nodes=nodes, edges=edges, config=config)
@@ -102,15 +105,26 @@ agraph(nodes=nodes, edges=edges, config=config)
 # Advanced configuration example
 with st.expander("⚙️ Advanced Configuration"):
     st.code("""
-# Using ConfigBuilder for interactive configuration
+# Using ConfigBuilder for interactive configuration (now includes zoom control)
 config_builder = ConfigBuilder(nodes=nodes)
 config = config_builder.build()
 
-# Manual configuration
+# Manual configuration with backward compatible format
 config = Config(
     height=600,
     width=800,
     physics=True,
-    center_node="your_node_id"  # Specify the node to center on
+    center_node="your_node_id"  # Uses default zoom of 2.0
+)
+
+# Manual configuration with custom zoom
+config = Config(
+    height=600,
+    width=800,
+    physics=True,
+    center_node={
+        "center_node": "your_node_id",
+        "zoom": 0.8  # Custom zoom level
+    }
 )
 """, language="python")
