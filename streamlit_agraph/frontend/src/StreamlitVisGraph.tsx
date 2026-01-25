@@ -16,9 +16,18 @@ function StreamlitVisGraph() {
 
   const events: GraphEvents = {
     selectNode: (event) => {
-      Streamlit.setComponentValue(event.nodes[0]);
-    }
-    ,
+      // Always prioritize node selection when a node is selected, 
+      // regardless of whether edges are also selected
+      if (event.nodes.length > 0) {
+        Streamlit.setComponentValue(event.nodes[0]);
+      }
+    },
+    selectEdge: (event) => {
+      // Only handle edge selection when no nodes are selected
+      if (event.edges.length > 0 && event.nodes.length === 0) {
+        Streamlit.setComponentValue(event.edges[0]);
+      }
+    },
     doubleClick: (event) => {
       const lookupNode = lookupNodeId(event.nodes[0], graph.nodes);
       if (lookupNode && lookupNode.link) {
